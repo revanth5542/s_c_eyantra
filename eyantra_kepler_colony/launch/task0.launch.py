@@ -20,6 +20,7 @@ from launch import LaunchDescription
 from launch.actions import (
     AppendEnvironmentVariable,
     DeclareLaunchArgument,
+    ExecuteProcess,
     IncludeLaunchDescription,
     OpaqueFunction,
     TimerAction,
@@ -174,11 +175,16 @@ def generate_launch_description():
         output="screen",
     )
 
+    task0_bridge = ExecuteProcess(
+        cmd=[PathJoinSubstitution([pkg_share, "launch", "task0_bridge.py"])],
+        output="screen",
+    )
+
     return LaunchDescription(
         declared_arguments + resource_paths + [
             gz_sim,
             clock_bridge,
-            TimerAction(period=LaunchConfiguration("arm_delay"), actions=[arm]),
+            TimerAction(period=LaunchConfiguration("arm_delay"), actions=[arm, task0_bridge]),
             TimerAction(period=LaunchConfiguration("ebot_delay"), actions=[ebot]),
             TimerAction(period=LaunchConfiguration("spawn_objects_delay"), actions=[spawn_objects]),
         ]

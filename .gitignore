@@ -25,3 +25,7 @@ SC-*-task-*/
 .DS_Store
 eyrc-sc-evaluator-task*
 ur_description/bin/cartesian_servo
+*.zip
+build
+install
+

@@ -240,10 +240,19 @@ def main():
         rclpy.spin(ore_tf_node)
     except KeyboardInterrupt:
         pass
+    except Exception as e:
+        print(f"Node execution interrupted: {e}")
     finally:
         cv2.destroyAllWindows()
-        ore_tf_node.destroy_node()
-        rclpy.shutdown()
+        try:
+            ore_tf_node.destroy_node()
+        except Exception:
+            pass
+        if rclpy.ok():
+            try:
+                rclpy.shutdown()
+            except Exception:
+                pass
 
 
 if __name__ == '__main__':
