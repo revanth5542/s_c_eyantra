@@ -199,7 +199,7 @@ class Task3BManipulation(Node):
             return omega[0], omega[1], omega[2]
         return 0.0, 0.0, 0.0
 
-    def navigate_towards(self, target_pos, speed_cap=None, tol=None):
+    def navigate_towards(self, target_pos, speed_cap=None, tol=None, stop_at_target=True):
         if speed_cap is None:
             speed_cap = self.max_linear_speed
         if tol is None:
@@ -217,7 +217,8 @@ class Task3BManipulation(Node):
         wx, wy, wz = self.compute_orientation_velocity()
 
         if dist < tol:
-            self.publish_twist(0.0, 0.0, 0.0, wx, wy, wz)
+            if stop_at_target:
+                self.publish_twist(0.0, 0.0, 0.0, wx, wy, wz)
             return True
 
         v_dir = error / dist
@@ -272,7 +273,7 @@ class Task3BManipulation(Node):
                 self.publish_twist(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
         elif self.state == 'MOVE_TO_CONVEYOR_ENTRY':
-            if self.navigate_towards(CONVEYOR_ENTRY_WP, speed_cap=0.24, tol=0.035):
+            if self.navigate_towards(CONVEYOR_ENTRY_WP, speed_cap=0.24, tol=0.035, stop_at_target=False):
                 self.state = 'APPROACH_HOVER_HIGH'
 
         elif self.state == 'APPROACH_HOVER_HIGH':
@@ -321,18 +322,18 @@ class Task3BManipulation(Node):
                 self.state = 'MOVE_TO_CONVEYOR_EXIT'
 
         elif self.state == 'MOVE_TO_CONVEYOR_EXIT':
-            if self.navigate_towards(CONVEYOR_ENTRY_WP, speed_cap=0.24, tol=0.035):
+            if self.navigate_towards(CONVEYOR_ENTRY_WP, speed_cap=0.24, tol=0.035, stop_at_target=False):
                 self.state = 'MOVE_TO_SWING_WP'
 
         elif self.state == 'MOVE_TO_SWING_WP':
-            if self.navigate_towards(SWING_WAYPOINT, speed_cap=0.24, tol=0.035):
+            if self.navigate_towards(SWING_WAYPOINT, speed_cap=0.24, tol=0.035, stop_at_target=False):
                 self.state = 'MOVE_TO_CONTAINER_HIGH'
 
         elif self.state == 'MOVE_TO_CONTAINER_HIGH':
             ore_id, ore_kind, _ = self.discovered_ores[self.current_ore_idx]
             drop_target = CONTAINER_DROP_POSES[ore_kind]
             approach_pos = np.array([drop_target[0], drop_target[1], CONTAINER_APPROACH_Z])
-            if self.navigate_towards(approach_pos, speed_cap=0.24, tol=0.03):
+            if self.navigate_towards(approach_pos, speed_cap=0.24, tol=0.03, stop_at_target=False):
                 self.state = 'LOWER_TO_CONTAINER'
 
         elif self.state == 'LOWER_TO_CONTAINER':
@@ -354,7 +355,7 @@ class Task3BManipulation(Node):
             ore_id, ore_kind, _ = self.discovered_ores[self.current_ore_idx]
             drop_target = CONTAINER_DROP_POSES[ore_kind]
             approach_pos = np.array([drop_target[0], drop_target[1], CONTAINER_APPROACH_Z])
-            if self.navigate_towards(approach_pos, speed_cap=0.24, tol=0.03):
+            if self.navigate_towards(approach_pos, speed_cap=0.24, tol=0.03, stop_at_target=False):
                 self.current_ore_idx += 1
                 if self.current_ore_idx < len(self.discovered_ores):
                     self.get_logger().info(
@@ -372,7 +373,7 @@ class Task3BManipulation(Node):
                     self.state = 'MOVE_TO_WAIT_POSE'
 
         elif self.state == 'MOVE_BACK_TO_SWING_WP':
-            if self.navigate_towards(SWING_WAYPOINT, speed_cap=0.24, tol=0.035):
+            if self.navigate_towards(SWING_WAYPOINT, speed_cap=0.24, tol=0.035, stop_at_target=False):
                 self.state = 'MOVE_TO_CONVEYOR_ENTRY'
 
         # ==========================================================
@@ -495,15 +496,15 @@ class Task3BManipulation(Node):
         # PHASE 3: TRANSPORT PACKAGE TO CRUSHER HOPPER
         # ==========================================================
         elif self.state == 'MOVE_PKG_TO_CRUSHER_CORRIDOR_1':
-            if self.navigate_towards(CRUSHER_CORRIDOR_1, speed_cap=0.24, tol=0.04):
+            if self.navigate_towards(CRUSHER_CORRIDOR_1, speed_cap=0.24, tol=0.04, stop_at_target=False):
                 self.state = 'MOVE_PKG_TO_CRUSHER_CORRIDOR_2'
 
         elif self.state == 'MOVE_PKG_TO_CRUSHER_CORRIDOR_2':
-            if self.navigate_towards(CRUSHER_CORRIDOR_2, speed_cap=0.24, tol=0.04):
+            if self.navigate_towards(CRUSHER_CORRIDOR_2, speed_cap=0.24, tol=0.04, stop_at_target=False):
                 self.state = 'MOVE_PKG_TO_CRUSHER_HOPPER_APPROACH'
 
         elif self.state == 'MOVE_PKG_TO_CRUSHER_HOPPER_APPROACH':
-            if self.navigate_towards(CRUSHER_HOPPER_APPROACH, speed_cap=0.24, tol=0.03):
+            if self.navigate_towards(CRUSHER_HOPPER_APPROACH, speed_cap=0.24, tol=0.03, stop_at_target=False):
                 self.state = 'LOWER_PKG_INTO_CRUSHER'
 
         elif self.state == 'LOWER_PKG_INTO_CRUSHER':
@@ -520,15 +521,15 @@ class Task3BManipulation(Node):
                 self.state = 'RETRACT_FROM_CRUSHER'
 
         elif self.state == 'RETRACT_FROM_CRUSHER':
-            if self.navigate_towards(CRUSHER_HOPPER_APPROACH, speed_cap=0.22, tol=0.03):
+            if self.navigate_towards(CRUSHER_HOPPER_APPROACH, speed_cap=0.22, tol=0.03, stop_at_target=False):
                 self.state = 'RETURN_HOME_VIA_CORRIDOR_2'
 
         elif self.state == 'RETURN_HOME_VIA_CORRIDOR_2':
-            if self.navigate_towards(CRUSHER_CORRIDOR_2, speed_cap=0.24, tol=0.04):
+            if self.navigate_towards(CRUSHER_CORRIDOR_2, speed_cap=0.24, tol=0.04, stop_at_target=False):
                 self.state = 'RETURN_HOME_VIA_CORRIDOR_1'
 
         elif self.state == 'RETURN_HOME_VIA_CORRIDOR_1':
-            if self.navigate_towards(CRUSHER_CORRIDOR_1, speed_cap=0.24, tol=0.04):
+            if self.navigate_towards(CRUSHER_CORRIDOR_1, speed_cap=0.24, tol=0.04, stop_at_target=False):
                 self.state = 'RETURN_HOME'
 
         elif self.state == 'RETURN_HOME':

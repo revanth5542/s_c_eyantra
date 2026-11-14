@@ -68,6 +68,7 @@ class Task3BNavigation(Node):
         self.step_completed = False
         self.aligning = False
         self.prev_v_lin = 0.0
+        self.prev_v_ang = 0.0
 
         self.get_logger().info('Task 3B Navigation Controller Initialized.')
 
@@ -83,6 +84,7 @@ class Task3BNavigation(Node):
             self.step_completed = False
             self.aligning = False
             self.prev_v_lin = 0.0
+            self.prev_v_ang = 0.0
             self.get_logger().info(
                 f'Received new leg path with {len(self.route)} waypoints: '
                 f'start={self.route[0]} -> goal={self.route[-1]}.'
@@ -151,6 +153,7 @@ class Task3BNavigation(Node):
                     self.step_completed = True
                     self.aligning = False
                     self.prev_v_lin = 0.0
+                    self.prev_v_ang = 0.0
                     self.get_logger().info(
                         f'Leg goal reached & aligned: pos=({rx:.2f}, {ry:.2f}) dist={dist:.3f}m, '
                         f'yaw={yaw:.2f} (target={target_yaw:.2f}, err={yaw_err:.3f} rad). Holding standstill.'
@@ -161,24 +164,32 @@ class Task3BNavigation(Node):
         target_heading = math.atan2(dy, dx)
         heading_err = wrap_to_pi(target_heading - yaw)
 
-        # 5. Smooth drive command (rotate in-place when heading error > 0.25 rad to eliminate turn drift)
-        if abs(heading_err) > 0.25:
+        # 5. Smooth drive command with progressive heading-based velocity scaling
+        if abs(heading_err) > 0.45:
+            # Rotate in-place for large heading errors to eliminate corner drift
             v_lin = 0.0
-            v_ang = max(-0.95, min(0.95, 2.5 * heading_err))
-            if abs(v_ang) < 0.20:
-                v_ang = 0.20 if heading_err > 0 else -0.20
+            raw_v_ang = max(-1.10, min(1.10, 2.6 * heading_err))
+            if abs(raw_v_ang) < 0.22:
+                raw_v_ang = 0.22 if heading_err > 0 else -0.22
         else:
+            # Smooth continuous cosine shaping as heading aligns
+            cos_factor = max(0.0, math.cos(heading_err * (math.pi / (2.0 * 0.45))))
             if is_last_wp:
-                v_lin = min(0.35, 0.7 * dist + 0.05) * max(0.0, math.cos(heading_err))
+                nominal_v = min(0.35, 0.75 * dist + 0.05)
             else:
-                v_lin = min(MAX_LINEAR_SPEED, 0.9 * dist + 0.12) * max(0.0, math.cos(heading_err))
-            v_lin = max(0.10, v_lin)
-            v_ang = max(-MAX_ANGULAR_SPEED, min(MAX_ANGULAR_SPEED, 2.4 * heading_err))
+                nominal_v = min(MAX_LINEAR_SPEED, 0.95 * dist + 0.12)
+            v_lin = max(0.06, nominal_v * cos_factor)
+            raw_v_ang = max(-MAX_ANGULAR_SPEED, min(MAX_ANGULAR_SPEED, 2.5 * heading_err))
 
-        # Acceleration rate limiter to prevent ore package from slipping on deck
+        # Acceleration rate limiter for linear speed (prevents package slippage)
         max_lin_accel = 0.075
         v_lin = max(self.prev_v_lin - max_lin_accel, min(self.prev_v_lin + max_lin_accel, v_lin))
         self.prev_v_lin = v_lin
+
+        # Angular acceleration rate limiter (prevents aggressive yaw snapping)
+        max_ang_accel = 0.18
+        v_ang = max(self.prev_v_ang - max_ang_accel, min(self.prev_v_ang + max_ang_accel, raw_v_ang))
+        self.prev_v_ang = v_ang
 
         self.publish_cmd(v_lin, v_ang)
 
@@ -198,3 +209,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
