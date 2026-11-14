@@ -71,3 +71,4 @@ def generate_launch_description():
         planning_node,
         navigation_node,
     ])
+
