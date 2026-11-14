@@ -379,7 +379,7 @@ class Task3BPlanner(Node):
         vy = self.odom.twist.twist.linear.y
         v_lin = math.hypot(vx, vy)
         v_ang = abs(self.odom.twist.twist.angular.z)
-        is_stationary = (v_lin < 0.015 and v_ang < 0.015)
+        is_stationary = (v_lin < 0.030 and v_ang < 0.030)
 
         # 1. Publish path ONLY while eBot stands still
         if not self.step_path_published:
@@ -415,7 +415,7 @@ class Task3BPlanner(Node):
                 abs(math.atan2(math.sin(math.pi - yaw), math.cos(math.pi - yaw)))
             )
 
-        is_at_goal = (dist_to_goal < 0.20 and yaw_err < 0.08 and is_stationary)
+        is_at_goal = (dist_to_goal < 0.22 and yaw_err < 0.10 and is_stationary)
 
         if is_at_goal:
             self.step_settle_ticks += 1
@@ -506,3 +506,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
