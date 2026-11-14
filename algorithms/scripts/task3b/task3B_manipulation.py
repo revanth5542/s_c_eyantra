@@ -274,18 +274,12 @@ class Task3BManipulation(Node):
 
         elif self.state == 'MOVE_TO_CONVEYOR_ENTRY':
             if self.navigate_towards(CONVEYOR_ENTRY_WP, speed_cap=0.24, tol=0.035, stop_at_target=False):
-                self.state = 'APPROACH_HOVER_HIGH'
-
-        elif self.state == 'APPROACH_HOVER_HIGH':
-            ore_id, ore_kind, ore_pos = self.discovered_ores[self.current_ore_idx]
-            target = np.array([ore_pos[0], ore_pos[1], CONVEYOR_APPROACH_Z])
-            if self.navigate_towards(target, speed_cap=0.24, tol=0.03):
                 self.state = 'APPROACH_HOVER_LOW'
 
         elif self.state == 'APPROACH_HOVER_LOW':
             ore_id, ore_kind, ore_pos = self.discovered_ores[self.current_ore_idx]
-            target = np.array([ore_pos[0], ore_pos[1], ore_pos[2] + 0.025])
-            if self.navigate_towards(target, speed_cap=0.18, tol=0.012):
+            target = np.array([ore_pos[0], ore_pos[1], ore_pos[2] + 0.018])
+            if self.navigate_towards(target, speed_cap=0.22, tol=0.012):
                 self.get_logger().info(f'Above {ore_id}. Activating magnet BEFORE final descent...')
                 self.set_magnet(True)
                 self.state = 'DESCEND_TO_ORE'
@@ -317,7 +311,7 @@ class Task3BManipulation(Node):
         elif self.state == 'LIFT_ORE':
             ore_id, ore_kind, ore_pos = self.discovered_ores[self.current_ore_idx]
             target = np.array([ore_pos[0], ore_pos[1], CONVEYOR_LIFT_Z])
-            if self.navigate_towards(target, speed_cap=0.24, tol=0.03):
+            if self.navigate_towards(target, speed_cap=0.24, tol=0.025, stop_at_target=False):
                 self.get_logger().info(f'Lifted {ore_id}. Navigating via conveyor exit...')
                 self.state = 'MOVE_TO_CONVEYOR_EXIT'
 
@@ -426,13 +420,13 @@ class Task3BManipulation(Node):
                 self.state = 'APPROACH_PKG_HOVER_LOW'
 
         elif self.state == 'APPROACH_PKG_HOVER_LOW':
-            # Hover 2.5 cm above physical top surface of package
+            # Hover 1.5 cm above physical top surface of package
             target = np.array([
                 self.package_target_pos[0],
                 self.package_target_pos[1],
-                PKG_TOP_SURFACE_Z + 0.025
+                PKG_TOP_SURFACE_Z + 0.015
             ])
-            if self.navigate_towards(target, speed_cap=0.14, tol=0.010):
+            if self.navigate_towards(target, speed_cap=0.18, tol=0.008):
                 self.get_logger().info('Above ore_package. Activating magnet BEFORE final descent...')
                 self.set_magnet(True)
                 self.state = 'DESCEND_PKG_CONTACT'
@@ -440,13 +434,12 @@ class Task3BManipulation(Node):
 
         elif self.state == 'DESCEND_PKG_CONTACT':
             # Target 2.0 mm above top surface (electromagnet capture range: 0.5mm < gap < 5.0mm)
-            # Gap of 2.0 mm (Z=0.2569m) guarantees solid capture with 0 collision force
             target = np.array([
                 self.package_target_pos[0],
                 self.package_target_pos[1],
                 PKG_TOP_SURFACE_Z + 0.0020
             ])
-            reached = self.navigate_towards(target, speed_cap=0.015, tol=0.0015)
+            reached = self.navigate_towards(target, speed_cap=0.025, tol=0.0015)
             curr_z = self.tcp_pose.pose.position.z
             depth_reached = (curr_z <= PKG_TOP_SURFACE_Z + 0.0025)
             timed_out = (now - self.state_timer_start > 3.0)
@@ -460,14 +453,13 @@ class Task3BManipulation(Node):
                 self.state_timer_start = now
 
         elif self.state == 'ENGAGE_PKG_MAGNET':
-            # Hold stationary at 2.0 mm gap for 0.50s to allow DetachableJoint to form
             target = np.array([
                 self.package_target_pos[0],
                 self.package_target_pos[1],
                 PKG_TOP_SURFACE_Z + 0.0020
             ])
             self.navigate_towards(target, speed_cap=0.002, tol=0.0010)
-            if now - self.state_timer_start >= 0.50:
+            if now - self.state_timer_start >= 0.35:
                 self.get_logger().info('Ore package latched. Lifting off eBot deck...')
                 self.state = 'LIFT_PKG'
                 self.state_timer_start = now
@@ -479,11 +471,9 @@ class Task3BManipulation(Node):
                 self.package_target_pos[1],
                 0.38
             ])
-            reached = self.navigate_towards(target, speed_cap=0.18, tol=0.02)
+            reached = self.navigate_towards(target, speed_cap=0.22, tol=0.02, stop_at_target=False)
             curr_z = self.tcp_pose.pose.position.z
-            # Strictly require the package to be lifted above the pedestal (Z >= 0.35m)
-            # AND at least 0.8s elapsed before signaling eBot departure.
-            if (reached or curr_z >= 0.35) and (now - self.state_timer_start >= 0.8):
+            if (reached or curr_z >= 0.35) and (now - self.state_timer_start >= 0.6):
                 self.get_logger().info(
                     'Package lifted above eBot deck! Signaling eBot to depart for Home.'
                 )
@@ -516,7 +506,7 @@ class Task3BManipulation(Node):
 
         elif self.state == 'RELEASE_PKG_IN_CRUSHER':
             self.publish_twist(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-            if now - self.state_timer_start >= 0.50:
+            if now - self.state_timer_start >= 0.25:
                 self.get_logger().info('Ore package settled inside crusher successfully! Retracting...')
                 self.state = 'RETRACT_FROM_CRUSHER'
 
